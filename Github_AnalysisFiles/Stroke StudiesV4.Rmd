@@ -1,0 +1,2865 @@
+---
+title: "Stroke Studies"
+author: "RR"
+date: "2022-08-11"
+output: html_document
+---
+
+# (0.1) Initialize all packages  that are needed ###
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+list.of.packages <-c( "plyr", "ggplot2","RColorBrewer","scales","ggpubr", "gdata", "emmeans",  "dunn.test", "gridExtra", "FSA", "tidyr", "mise", "stringr", "dplyr", "plotrix", "ggpmisc","readxl", "tidyverse", "pheatmap", "readr", "ggrastr", "igraph", "VennDiagram", "ggnewscale", "lessR", "missMDA", "matrixStats", "cowplot")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+packages <-  c("plyr", "ggplot2","RColorBrewer","scales","ggpubr", "gdata", "emmeans",  "dunn.test", "gridExtra", "FSA", "tidyr", "mise", "stringr", "dplyr", "plotrix", "ggpmisc", "readxl", "tidyverse", "pheatmap", "readr", "ggrastr", "igraph", "VennDiagram", "ggnewscale", "lessR", "missMDA", "matrixStats", "cowplot")
+lapply(packages, library, character.only = TRUE)
+
+#Initalization Bioconductor
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+# install.packages("BiocManager")
+# list.of.packages2 <-c( "ggupset", "cowplot","DESeq2","genefilter","edgeR", "mixOmics", "HTSFilter",  "clusterProfiler", "org.Mm.eg.db","org.Rn.eg.db", "org.Hs.eg.db",  "GeneOverlap", "enrichplot", "pathview", "org.Mmu.eg.db")
+# new.packages2 <- list.of.packages2[!(list.of.packages2 %in% installed.packages()[,"Package"])]
+# 
+# if(length(new.packages2)) BiocManager::install(new.packages2)
+# packages2 <-  c("ggupset", "cowplot","DESeq2","genefilter","edgeR", "mixOmics", "HTSFilter",  "clusterProfiler", "org.Mm.eg.db", "org.Rn.eg.db", "org.Hs.eg.db", "GeneOverlap", "enrichplot", "pathview", "org.Mmu.eg.db")
+# lapply(packages2, library, character.only = TRUE)
+
+#install reduced
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+list.of.packages2 <-c( "AnnotationDbi", "org.Mm.eg.db","org.Rn.eg.db", "org.Hs.eg.db",  "GeneOverlap", "pathview", "org.Mmu.eg.db", "PCAtools", "ggtree", "enrichplot", "clusterProfiler")
+new.packages2 <- list.of.packages2[!(list.of.packages2 %in% installed.packages()[,"Package"])]
+
+if(length(new.packages2)) BiocManager::install(new.packages2)
+packages2 <-  c("AnnotationDbi", "org.Mm.eg.db", "org.Rn.eg.db", "org.Hs.eg.db", "GeneOverlap", "pathview", "org.Mmu.eg.db", "PCAtools", "ggtree", "enrichplot", "clusterProfiler")
+lapply(packages2, library, character.only = TRUE)
+
+
+
+#mise()
+
+```
+
+
+# (0.2) Read in all datasets. This includes both info table and raw transcriptomics files ####
+
+
+```{r include=FALSE, paged.print=FALSE}
+studyInfo <- read_excel("Stroke_Studies.xlsx", sheet = "AllStudy", .name_repair = "universal") 
+studySummary <- read_excel("Stroke_Studies.xlsx", sheet = "RatioStudies")
+sampleInfo <- read_excel("Stroke_Studies.xlsx", .name_repair = "universal") 
+
+
+```
+
+# (1.0) Plot overview of number of studies
+
+```{r}
+studyInfo2 <- studyInfo %>% mutate(not_used = total-used) %>% dplyr::select(-total) %>%
+gather("category", "studies",2:3)
+
+mycolors <- brewer.pal(6,"Set2")
+mycolors <-c( "#E78AC3","#66C2A5","#8DA0CB","#FC8D62", "#A6D854","#FFD92F" )
+
+PLOT_study <- ggplot(studyInfo2, aes(fill=category, y=studies, x=group)) + 
+    geom_bar(position="stack", stat="identity")+
+    scale_fill_manual(values=mycolors)+
+    theme(text = element_text(size=10))+
+     theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1))
+PLOT_study
+
+ggsave("Studies_overview.pdf",PLOT_study, width = 4, height = 3)
+
+# studySummary2 <- studySummary %>% 
+#   dplyr::select(-Total) %>%
+#   gather("category", "studies")
+# 
+# 
+# PieChart(studies, data = studySummary2,
+#          fill = mycolors,
+#          main = NULL,
+#          color = "black",
+#          lwd = 1.5,
+#          values_color = c(rep("white", 4), 1),
+#          values_size = 0.85,
+#          quiet=T, 
+#          pdf_file="1_Overview_Output/PLOT_OverviewSpecies.pdf", 
+#          width=6, height=6) 
+
+
+
+```
+
+
+
+# (1.1) Plot some general information about dataset
+
++++Please watch out since the code is printing directly the PDF +++
+
+```{r echo=FALSE}
+
+mycolors <- brewer.pal(6,"Set2")
+mycolors <-c( "#E78AC3","#66C2A5","#8DA0CB","#FC8D62", "#A6D854","#FFD92F" )
+
+
+
+# Which species do we have? 
+PieChart(Species, data = sampleInfo,
+         fill = mycolors,
+         main = NULL,
+         color = "black",
+         lwd = 1.5,
+         values_color = c(rep("white", 4), 1),
+         values_size = 0.85,
+         quiet=T, 
+          hole = 0.5,
+         pdf_file="1_Overview_Output/PLOT_OverviewSpecies.pdf", 
+         width=6, height=6) 
+
+# Sex distribution
+PieChart(Sex, data = sampleInfo,
+         fill = mycolors,
+         main = NULL,
+         color = "black",
+         lwd = 1.5,
+         values_color = c(rep("white", 4), 1),
+         values_size = 0.85,
+         quiet=T, 
+          hole = 0.5,
+         pdf_file="1_Overview_Output/PLOT_OverviewSex.pdf", 
+         width=6, height=6) 
+
+# Time distribution
+PieChart(Time.points, data = sampleInfo,
+         fill = mycolors,
+         main = NULL,
+         color = "black",
+         lwd = 1.5,
+         values_color = c(rep("white", 4), 1),
+         values_size = 0.85,
+         quiet=T, 
+          hole = 0.5,
+         pdf_file="1_Overview_Output/PLOT_OverviewTime.pdf", 
+         width=6, height=6) 
+
+# Experimental stroke model
+PieChart(Stroke.model, data = sampleInfo,
+         fill = mycolors,
+         main = NULL,
+         color = "black",
+         lwd = 1.5,
+        values_color = c(rep("white", 4), 1),
+         values_size = 0.85,
+         quiet=T, 
+         hole = 0.5,
+        pdf_file="1_Overview_Output/PLOT_OverviewStrokeModel.pdf", 
+        width=6, height=6) 
+
+
+# Contol tissue
+PieChart(Control, data = sampleInfo,
+         fill = mycolors,
+         main = NULL,
+         color = "black",
+         lwd = 1.5,
+         values_color = c(rep("white", 4), 1),
+         values_size = 0.85,
+         quiet=T, 
+         hole = 0.5,
+         pdf_file="1_Overview_Output/PLOT_OverviewControl.pdf", 
+         width=6, height=6) 
+```
+
+
+
+# (2.0) Now we read in and modify the transcriptomics data ###
+
+```{r include=FALSE}
+#### Here we load all .csv files in in the Folder "Raw_HW_files/". 
+# if you work on a mac you need to remove the / or add the / after CSV here
+files <- list.files(path = "RawFiles/CSV", pattern = "*.csv", full.names = T)
+glimpse(files)
+
+
+data <- sapply(files, read_delim, simplify=T, delim= "\t") # Read In all data with data.table 
+
+# Now we need to go through individual datasets and trim them to have it universal
+
+
+data$`RawFiles/CSV/ID1_GSE103661.csv` <- data$`RawFiles/CSV/ID1_GSE103661.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC)  #
+data$`RawFiles/CSV/ID11_GSE9391.csv` <- data$`RawFiles/CSV/ID11_GSE9391.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol)  #
+data$`RawFiles/CSV/ID12_GSE23160.csv` <- data$`RawFiles/CSV/ID12_GSE23160.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID13_GSE23160.csv` <- data$`RawFiles/CSV/ID13_GSE23160.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID14_GSE32529.csv` <- data$`RawFiles/CSV/ID14_GSE32529.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID15_GSE32529.csv` <- data$`RawFiles/CSV/ID15_GSE32529.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID16_GSE35589.csv` <- data$`RawFiles/CSV/ID16_GSE35589.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID17_GSE35589.csv` <- data$`RawFiles/CSV/ID17_GSE35589.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID23_GSE28731.csv` <- data$`RawFiles/CSV/ID23_GSE28731.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID24_GSE30655.csv` <- data$`RawFiles/CSV/ID24_GSE30655.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID25_GSE38037.csv` <- data$`RawFiles/CSV/ID25_GSE38037.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID26_GSE52001.csv` <- data$`RawFiles/CSV/ID26_GSE52001.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+data$`RawFiles/CSV/ID27_GSE58720.csv` <- data$`RawFiles/CSV/ID27_GSE58720.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID28_GSE61616.csv` <- data$`RawFiles/CSV/ID28_GSE61616.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID29_GSE78731.csv` <- data$`RawFiles/CSV/ID29_GSE78731.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID3_GSE33725.csv` <- data$`RawFiles/CSV/ID3_GSE33725.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+#data$`RawFiles/CSV/ID30_GSE98319.csv` <- data$`RawFiles/CSV/ID30_GSE98319.csv` %>% dplyr::select(adj.P.Val, P.Value, , logFC, SEQUENCE) # here is a problem with GBACC 
+data$`RawFiles/CSV/ID31_GSE120565.csv` <- data$`RawFiles/CSV/ID31_GSE120565.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GeneSymbol) %>% dplyr::rename(Gene.symbol = GeneSymbol)
+data$`RawFiles/CSV/ID32_GSE55260.csv` <- data$`RawFiles/CSV/ID32_GSE55260.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID33_GSE55260.csv` <- data$`RawFiles/CSV/ID33_GSE55260.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID34_GSE196448.csv` <- data$`RawFiles/CSV/ID34_GSE196448.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GENE.SYMBOL) %>% dplyr::rename(Gene.symbol = GENE.SYMBOL)
+data$`RawFiles/CSV/ID35_GSE107452.csv` <- data$`RawFiles/CSV/ID35_GSE107452.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID36_GSE162955.csv` <-data$`RawFiles/CSV/ID36_GSE162955.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, unigene) %>% mutate(GB_ACC = gsub("( //).*","\\3",unigene)) %>% dplyr::select(-unigene) #
+data$`RawFiles/CSV/ID4_GSE33725.csv` <- data$`RawFiles/CSV/ID4_GSE33725.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+data$`RawFiles/CSV/ID5_GSE60820.csv` <- data$`RawFiles/CSV/ID5_GSE60820.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC) #
+data$`RawFiles/CSV/ID6_GSE97537.csv` <-data$`RawFiles/CSV/ID6_GSE97537.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol) 
+data$`RawFiles/CSV/ID7_GSE36010.csv` <- data$`RawFiles/CSV/ID7_GSE36010.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+data$`RawFiles/CSV/ID8_GSE36010.csv` <- data$`RawFiles/CSV/ID8_GSE36010.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC)
+data$`RawFiles/CSV/ID37_GSE163654.csv` <- data$`RawFiles/CSV/ID37_GSE163654.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, swissprot) %>% mutate(GB_ACC = gsub("( //).*","\\3",swissprot)) %>% dplyr::select(-swissprot) #
+data$`RawFiles/CSV/ID38_GSE163654.csv` <- data$`RawFiles/CSV/ID38_GSE163654.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, swissprot) %>% mutate(GB_ACC = gsub("( //).*","\\3",swissprot)) %>% dplyr::select(-swissprot) #
+data$`RawFiles/CSV/ID39_GSE163654.csv` <- data$`RawFiles/CSV/ID39_GSE163654.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+data$`RawFiles/CSV/ID40_GSE163654.csv` <- data$`RawFiles/CSV/ID40_GSE163654.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, GB_ACC ) #
+data$`RawFiles/CSV/ID41_GSE137595.csv` <- data$`RawFiles/CSV/ID41_GSE137595.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, mrna_assignment) %>%  mutate(GB_ACC = gsub("( //).*","\\3",mrna_assignment)) %>% dplyr::select(-mrna_assignment) #
+data$`RawFiles/CSV/ID42_GSE166162.csv` <- data$`RawFiles/CSV/ID42_GSE166162.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol)
+data$`RawFiles/CSV/ID43_GSE208605.csv` <- data$`RawFiles/CSV/ID43_GSE208605.csv` %>% dplyr::select(adj.P.Val, P.Value,  logFC, Gene.symbol)
+# # MapID for macaaca 
+# BiocManager::install("AnnotationHub")
+# 
+# library(AnnotationHub)
+# 
+# hub <- AnnotationHub()
+# query(hub, c("mulatta"))
+# ensdb <- hub[["AH89201"]]
+
+
+
+```
+
+
+```{r}
+
+
+# Making all columns the same. The main thing that needs to be done is to change all GB_ACC to Gene.Symbol. Please be aware of species! 
+data$`RawFiles/CSV/ID1_GSE103661.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID1_GSE103661.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID1_GSE103661.csv` <- dplyr::select(data$`RawFiles/CSV/ID1_GSE103661.csv`, -GB_ACC) 
+
+
+data$`RawFiles/CSV/ID16_GSE35589.csv`$Gene.symbol <- as.character(mapIds(org.Mmu.eg.db, keys = data$`RawFiles/CSV/ID16_GSE35589.csv`$GB_ACC,keytype = "REFSEQ", column="SYMBOL", multiVals="first"))
+data$`RawFiles/CSV/ID16_GSE35589.csv` <- dplyr::select(data$`RawFiles/CSV/ID16_GSE35589.csv`, -GB_ACC)    
+
+data$`RawFiles/CSV/ID17_GSE35589.csv`$Gene.symbol <- as.character(mapIds(org.Mmu.eg.db, keys = data$`RawFiles/CSV/ID17_GSE35589.csv`$GB_ACC,keytype = "REFSEQ", column="SYMBOL", multiVals="first"))
+data$`RawFiles/CSV/ID17_GSE35589.csv` <- dplyr::select(data$`RawFiles/CSV/ID17_GSE35589.csv`, -GB_ACC)    
+
+#rat
+data$`RawFiles/CSV/ID26_GSE52001.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID26_GSE52001.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID26_GSE52001.csv` <- dplyr::select(data$`RawFiles/CSV/ID26_GSE52001.csv`, -GB_ACC) 
+
+#mouse
+data$`RawFiles/CSV/ID27_GSE58720.csv`$Gene.symbol <- as.character(mapIds(org.Mm.eg.db, keys = data$`RawFiles/CSV/ID27_GSE58720.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID27_GSE58720.csv` <- dplyr::select(data$`RawFiles/CSV/ID27_GSE58720.csv`, -GB_ACC) 
+
+# rat
+data$`RawFiles/CSV/ID29_GSE78731.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID29_GSE78731.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID29_GSE78731.csv` <- dplyr::select(data$`RawFiles/CSV/ID29_GSE78731.csv`, -GB_ACC) 
+#rat
+data$`RawFiles/CSV/ID3_GSE33725.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID3_GSE33725.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID3_GSE33725.csv` <- dplyr::select(data$`RawFiles/CSV/ID3_GSE33725.csv`, -GB_ACC) 
+
+#macaca
+data$`RawFiles/CSV/ID35_GSE107452.csv`$Gene.symbol <- as.character(mapIds(org.Mmu.eg.db, keys = data$`RawFiles/CSV/ID35_GSE107452.csv`$GB_ACC,keytype = "REFSEQ", column="SYMBOL", multiVals="first"))
+data$`RawFiles/CSV/ID35_GSE107452.csv` <- dplyr::select(data$`RawFiles/CSV/ID35_GSE107452.csv`, -GB_ACC)                                                                              
+#rat
+data$`RawFiles/CSV/ID4_GSE33725.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID4_GSE33725.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID4_GSE33725.csv` <- dplyr::select(data$`RawFiles/CSV/ID4_GSE33725.csv`, -GB_ACC) 
+
+# mouse
+data$`RawFiles/CSV/ID5_GSE60820.csv`$Gene.symbol <- as.character(mapIds(org.Mm.eg.db, keys = data$`RawFiles/CSV/ID5_GSE60820.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID5_GSE60820.csv`<- dplyr::select(data$`RawFiles/CSV/ID5_GSE60820.csv`, -GB_ACC) 
+
+#rat
+data$`RawFiles/CSV/ID7_GSE36010.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID7_GSE36010.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID7_GSE36010.csv` <- dplyr::select(data$`RawFiles/CSV/ID7_GSE36010.csv`, -GB_ACC) 
+
+data$`RawFiles/CSV/ID8_GSE36010.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID8_GSE36010.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID8_GSE36010.csv` <- dplyr::select(data$`RawFiles/CSV/ID8_GSE36010.csv`, -GB_ACC) 
+
+# human
+
+data$`RawFiles/CSV/ID36_GSE162955.csv`$Gene.symbol <- as.character(mapIds(org.Hs.eg.db, keys = data$`RawFiles/CSV/ID36_GSE162955.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID36_GSE162955.csv` <- dplyr::select(data$`RawFiles/CSV/ID36_GSE162955.csv`, -GB_ACC) 
+
+# 
+data$`RawFiles/CSV/ID37_GSE163654.csv`$Gene.symbol <- as.character(mapIds(org.Mm.eg.db, keys = data$`RawFiles/CSV/ID37_GSE163654.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID37_GSE163654.csv` <- dplyr::select(data$`RawFiles/CSV/ID37_GSE163654.csv`, -GB_ACC) 
+
+data$`RawFiles/CSV/ID38_GSE163654.csv`$Gene.symbol <- as.character(mapIds(org.Mm.eg.db, keys = data$`RawFiles/CSV/ID38_GSE163654.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID38_GSE163654.csv` <- dplyr::select(data$`RawFiles/CSV/ID38_GSE163654.csv`, -GB_ACC) 
+
+
+data$`RawFiles/CSV/ID39_GSE163654.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID39_GSE163654.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID39_GSE163654.csv` <- dplyr::select(data$`RawFiles/CSV/ID39_GSE163654.csv`, -GB_ACC) 
+
+data$`RawFiles/CSV/ID40_GSE163654.csv`$Gene.symbol <- as.character(mapIds(org.Rn.eg.db, keys = data$`RawFiles/CSV/ID40_GSE163654.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID40_GSE163654.csv` <- dplyr::select(data$`RawFiles/CSV/ID40_GSE163654.csv`, -GB_ACC) 
+
+
+data$`RawFiles/CSV/ID41_GSE137595.csv`$Gene.symbol <- as.character(mapIds(org.Mm.eg.db, keys = data$`RawFiles/CSV/ID41_GSE137595.csv`$GB_ACC, keytype = "REFSEQ", column="SYMBOL", multiVals="first")) 
+data$`RawFiles/CSV/ID41_GSE137595.csv` <- dplyr::select(data$`RawFiles/CSV/ID41_GSE137595.csv`, -GB_ACC) 
+
+
+all_df <- do.call(rbind.data.frame, data)
+all_df2 <- all_df %>% rownames_to_column("Study") %>% 
+  mutate(Study2 = sub(".*CSV/ *(.*?) *.csv.*", "\\1", Study)) %>% 
+  mutate(Study2 = as.factor(Study2)) %>% 
+  dplyr::select(-Study)
+
+# This is jur for me for every to remember how to do stirngs!! 
+#a <- "abcd.efgh"
+# Delete everything after c
+#sub("*(.*?) *c.*", "\\1", a)
+# Delete everything before c
+#sub("*c.*", "\\1", a)
+# keep  everything between bc and gh
+#sub(".*bc *(.*?) *gh.*", "\\1", a)
+#
+
+all_df3 <- all_df2 %>% distinct() %>% na.omit() %>% dplyr::filter(Gene.symbol != "NULL") 
+  
+  
+all_df4 <- all_df3 %>% group_by(Gene.symbol, Study2) %>% summarize_at(vars(adj.P.Val:logFC), mean, na.rm = F) %>%ungroup
+all_df4$Gene.symbol <- tolower(all_df4$Gene.symbol) 
+
+
+all_df4_red <- all_df4 %>% dplyr::select(-adj.P.Val, -P.Value) %>% dplyr::filter(Gene.symbol != "sirt2") # this gene annoyed me came up double although i should've removed it 
+
+summary_hits <- all_df4_red %>% 
+  group_by(Study2) %>% 
+  tally()
+
+
+
+p<-ggplot(data=summary_hits, aes(x=reorder(Study2, -n), y=n)) +
+  geom_bar(stat="identity")+
+  geom_hline(yintercept = 10000, linetype = "dashed")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p
+
+# Problably I should delete all < 10'000 for PCA analysis
+all_df4_redred <- all_df4_red %>% ungroup() %>% mutate(Study2 = as.factor(Study2)) #%>%
+  #filter(!Study2 %in% c("ID34_GSE196448","ID16_GSE35589","ID17_GSE35589","ID35_GSE107452", "ID11_GSE9391", "ID8_GSE36010"))
+
+
+ggsave("study_hits.pdf", p, width = 6, height = 4 )
+
+df_wide <- pivot_wider(all_df4_redred,names_from =Study2, values_from = logFC)
+```
+
+
+# (3.0) Simple PCA to start with #
+
+```{r fig.height=15, fig.width=20}
+df_data <- df_wide %>%
+  column_to_rownames(var="Gene.symbol") %>%
+ # na.omit() %>% # Removes all NA values  
+  dplyr::select(
+"ID1_GSE103661",
+"ID3_GSE33725",
+"ID4_GSE33725",
+"ID5_GSE60820",
+"ID6_GSE97537",
+"ID7_GSE36010",
+"ID8_GSE36010",
+"ID11_GSE9391",
+"ID12_GSE23160",
+"ID13_GSE23160",
+"ID14_GSE32529",
+"ID15_GSE32529",
+"ID16_GSE35589",
+"ID17_GSE35589",
+"ID23_GSE28731",
+"ID24_GSE30655",
+"ID25_GSE38037",
+"ID26_GSE52001",
+"ID27_GSE58720",
+"ID28_GSE61616",
+"ID29_GSE78731",
+"ID31_GSE120565",
+"ID32_GSE55260",
+"ID33_GSE55260",
+"ID34_GSE196448",
+"ID35_GSE107452",
+"ID36_GSE162955",
+"ID37_GSE163654",
+"ID38_GSE163654",
+"ID39_GSE163654",
+"ID40_GSE163654",
+"ID41_GSE137595",
+"ID42_GSE166162",
+"ID43_GSE208605")
+
+
+
+
+
+df_metadata <- sampleInfo  %>% 
+  drop_na(Name) %>%
+  #filter(!Name %in% c("ID34_GSE196448","ID16_GSE35589","ID17_GSE35589","ID35_GSE107452", "ID11_GSE9391", "ID8_GSE36010"))%>%
+  column_to_rownames(var="Name") %>%
+  dplyr::select(Species, Sex, ExactTime, Time.points, Control, Stroke.model)
+  
+
+  #discard <- apply(df_metadata, 1, function(x) any(is.na(x)))
+
+
+
+
+df_data_NoNA <- df_data %>% replace(is.na(.), 0)
+#df_data <- df_data %>% drop_na()
+
+
+df_metadata$Species <- as.factor(df_metadata$Species)
+df_metadata$Sex <-as.factor(df_metadata$Sex)
+df_metadata$ExactTime <- as.factor(df_metadata$ExactTime)
+df_metadata$Time.points <- as.factor(df_metadata$Time.points)
+df_metadata$Control <- as.factor(df_metadata$Control)
+df_metadata$Stroke.model <- as.factor(df_metadata$Stroke.model)
+
+# filter the expression data to match the samples in our pdata
+df_data_NoNA <- df_data_NoNA[,which(colnames(df_data_NoNA) %in% rownames(df_metadata))]
+
+
+ # # remove samples from the pdata that have any NA value
+ #  discard <- apply(df_metadata, 1, function(x) any(is.na(x)))
+ # 
+ #  df_metadata <- df_metadata[!discard,]
+
+
+
+all(colnames(df_data_NoNA) == rownames(df_metadata))  
+
+
+pca_all <- PCAtools::pca(df_data_NoNA, metadata = df_metadata) 
+
+mycolors <-c( "#E78AC3","#66C2A5","#8DA0CB","#FC8D62", "#A6D854","#FFD92F" )
+
+# This is all data
+df_pca_all <- data.frame('Species' = pca_all$metadata$Species, 'Sex' = pca_all$metadata$Sex, "Timepoint" = pca_all$metadata$Time.points,  "Control" = pca_all$metadata$Control, "Stroke.model" = pca_all$metadata$Stroke.model, pca_all$rotated[,1:2])
+df_pca_all <- df_pca_all %>% rownames_to_column("ID")
+
+aa <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Timepoint), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+bb <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Sex), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+cc <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Control), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+dd <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Stroke.model), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+#  geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+
+
+# 22 and 27 look weird? maybe exclude? 
+df_pca_all_red <- df_pca_all %>% filter(!ID %in% c("ID24_GSE30655",  "ID27_GSE58720", "ID28_GSE61616"))
+
+
+ee <- ggplot(df_pca_all_red, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Timepoint), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+ff <- ggplot(df_pca_all_red, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Sex), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+gg <- ggplot(df_pca_all_red, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Control), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+hh <- ggplot(df_pca_all_red, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(fill= as.factor(Stroke.model), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+#  geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+##############################################################
+### This is a bit stupid and only for color code ####
+ii <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(color= as.factor(Timepoint), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+jj <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(color= as.factor(Sex), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+kk <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(color= as.factor(Control), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+ # geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+ll <- ggplot(df_pca_all, aes(x=PC1, y=PC2))+
+ # stat_ellipse(aes(color=Timepoint), geom="polygon" , fill = "grey", alpha = 0.2) +
+  geom_jitter(aes(color= as.factor(Stroke.model), shape=as.factor(Species)),
+              alpha = .7, size = 4, width = 1)+
+  scale_shape_manual(values=c(23, 24, 22, 21))+
+  scale_color_manual(values=c(mycolors))+ 
+  scale_fill_manual(values=c(mycolors))+ 
+#  geom_text(aes(label=ID), stat = 'identity', angle = 0, position = 'identity', hjust = -.2, check_overlap = TRUE)+
+  theme_bw()
+
+
+
+
+PLOT_all_PCA <- grid.arrange(aa,bb,cc,dd,ee,ff,gg,hh,ii,jj,kk,ll, nrow= 3)
+
+ggsave("ALL_PCA.pdf", PLOT_all_PCA, width = 22, height = 12)
+
+```
+
+# (3.1) Heatmap # 
+
+```{r fig.height=10, fig.width=10}
+topvargenes <- head(order(rowVars(as.matrix(df_data_NoNA)), decreasing = TRUE), 100)
+
+
+
+mycolors_heatmap <- c("#2b8cbe", "white" ,"#c51b8a")
+mycolors_heatmap <- colorRampPalette(c(mycolors_heatmap))(n = 50)
+
+matrix_heatmap  <- df_data_NoNA[topvargenes,]
+matrix_heatmap  <- matrix_heatmap - rowMeans(matrix_heatmap)
+matrix_heatmap[matrix_heatmap > 3.0] = 3.0 # Values above 3.5 are set to 3.5
+matrix_heatmap[matrix_heatmap < -3.0] = -3.0
+
+
+annotation <- df_metadata %>% dplyr::select(c("Species","Stroke.model", "Time.points")) 
+
+
+row.names(df_metadata)
+
+PLOT_Heatmap <- pheatmap(matrix_heatmap, 
+                         annotation_col = annotation, 
+                         cluster_cols=F
+                         ,color = mycolors_heatmap
+                         )
+
+
+
+# Subset this whole procedure 
+# Let's take first only species: 
+
+df_metadata_species <- df_metadata %>% 
+  filter(Species %in% c("Rat", "Mouse")) %>%
+  filter(Stroke.model %in% c("tMCAO", "pMCAO"))  %>%
+  filter(Time.points == "acute")
+
+
+keep_columns <- row.names(df_metadata_species)
+
+df_data_NoNA_species <- df_data_NoNA %>% dplyr::select(one_of(keep_columns))
+
+topvargenes_species <- head(order(rowVars(as.matrix(df_data_NoNA_species)), decreasing = TRUE), 100)
+
+
+
+
+matrix_heatmap_species  <- df_data_NoNA_species[topvargenes_species,]
+matrix_heatmap_species  <- matrix_heatmap_species - rowMeans(matrix_heatmap_species)
+matrix_heatmap_species[matrix_heatmap_species > 3.0] = 3.0 # Values above 3.5 are set to 3.5
+matrix_heatmap_species[matrix_heatmap_species < -3.0] = -3.0
+
+
+
+
+
+PLOT_Heatmap_species <- pheatmap(matrix_heatmap_species, 
+                         annotation_col = df_metadata_species, 
+                         cluster_cols=F
+                         ,color = mycolors_heatmap
+                         )
+# Filter not working for species; not it works I think
+# NOT COMPLETELY DONE YET
+```
+
+
+# (3.2) Venn Diagram all data (human, macaca, mouse, rat)
+
+```{r}
+# I loaded all files in the wrong order so I need to multiply the fold change *(-1)
+
+df_data_norm <- all_df4 %>% mutate(logFC = logFC*(-1)) %>%
+  mutate(sig = ifelse(logFC > 1 & P.Value  < 0.05, "possig", 
+                      ifelse(logFC < -1 & P.Value  < 0.05, "negseg", "nonsig")))
+
+
+```
+
+```{r fig.height=40, fig.width=40}
+# Add all venn plots to the individual plots
+
+#all_non_stroke
+PLOT_venn_all <- ggplot(df_data_norm, aes(x=logFC, y=-log10(adj.P.Val))) +
+  facet_wrap(.~Study2, scales = "free") +
+  rasterise(geom_jitter(aes(color = sig, fill = sig) ,width = 0.03,pch =21, size =3, alpha = .5, stroke = 0.1), dpi=600) + # increase dpi for print
+  #scale_y_continuous(limits = c(0, 5.5))+
+  #scale_x_continuous(limits = c(-5.5,5.5)) +
+  geom_vline(xintercept =-1, linetype="dotted")+
+  geom_vline(xintercept =1, linetype="dotted")+
+  geom_hline(yintercept= 1.301, linetype="dotted")+
+  scale_fill_manual(values=c("#2b8cbe","#bdbdbd", "#c51b8a"))+
+  scale_color_manual(values=c("#2b8cbe","#bdbdbd", "#c51b8a"))+
+  theme_light() 
+#PLOT_venn_all
+
+
+ggsave("ALL_vennplots.pdf", PLOT_venn_all, width = 35, height = 35)
+
+```
+
+
+let's have a venn diagram top genes up and downregulated. I changed it for that version so we have lgFC changes > 0.5
+
+```{r}
+
+df_all <- all_df4 %>% left_join(sampleInfo, by= c("Study2" = "Name")) # merge data frames
+
+# Species 
+# lets build the median expression per species 
+df_all_species <- df_all %>% group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC))
+
+
+#First let's have a table of most differential expressed 50 + and 50- genes for each dataset
+
+table25down_species <- df_all_species %>%
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25up_species <- df_all_species %>%
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25_species <- table25up_species %>% bind_rows(table25down_species) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+library("writexl")
+
+write_xlsx(table25_species, "Tables/table25_species.xlsx")
+
+### Plot Venn 
+
+VENN_all_species_down <- df_all_species  %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC <0)
+
+VENN_all_species_down_Mouse <- VENN_all_species_down %>% filter(Species   == "Mouse")%>%  dplyr::select(Gene.symbol)
+VENN_all_species_down_human <- VENN_all_species_down %>%  filter(Species   == "human")%>% dplyr::select(Gene.symbol)
+VENN_all_species_down_Rat <- VENN_all_species_down %>% filter(Species   == "Rat")%>%  dplyr::select(Gene.symbol) 
+VENN_all_species_down_Macaca <- VENN_all_species_down %>% filter(Species   == "Macaca")%>%  dplyr::select(Gene.symbol)
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_down_species <- venn.diagram(
+    list(Mouse = VENN_all_species_down_Mouse$Gene.symbol, 
+         Human = VENN_all_species_down_human$Gene.symbol, 
+         Rat= VENN_all_species_down_Rat$Gene.symbol,
+         Macaca= VENN_all_species_down_Macaca$Gene.symbol), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',4), 
+    main="Downregulated Genes Species", 
+    fill = c("red", "blue", "green", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_down_species)
+
+
+VENN_all_species_up <- df_all_species %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC >0)
+
+
+VENN_all_species_up_Mouse <- VENN_all_species_up %>% filter(Species   == "Mouse")%>%  dplyr::select(Gene.symbol)
+VENN_all_species_up_human <- VENN_all_species_up %>%  filter(Species   == "human")%>% dplyr::select(Gene.symbol)
+VENN_all_species_up_Rat <- VENN_all_species_up %>% filter(Species   == "Rat")%>%  dplyr::select(Gene.symbol) 
+VENN_all_species_up_Macaca <- VENN_all_species_up %>% filter(Species   == "Macaca")%>%  dplyr::select(Gene.symbol)
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_up_species <- venn.diagram(
+    list(Mouse = VENN_all_species_up_Mouse$Gene.symbol, 
+         Human = VENN_all_species_up_human$Gene.symbol, 
+         Rat= VENN_all_species_up_Rat$Gene.symbol,
+         Macaca= VENN_all_species_up_Macaca$Gene.symbol), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',4), 
+    main="Upregulated Genes Species", 
+    fill = c("red", "blue", "green", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_up_species)
+
+
+
+# Time.points
+
+df_all_timepoints <- df_all %>% 
+  #filter(Species %in% c("Mouse", "Rat"))%>% 
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>% 
+  filter()
+
+
+table25down_timepoints <- df_all_timepoints  %>%
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  slice(1:30)
+
+table25up_timepoints  <- df_all_timepoints %>%
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  slice(1:30)
+
+table25_timepoints <- table25up_timepoints %>% bind_rows(table25down_timepoints) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_timepoints, "Tables/table25_timepoints.xlsx")
+
+
+VENN_all_timepoints_down <- df_all_timepoints %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  filter(logFC <0)
+
+
+VENN_all_timepoints_down_acute <- VENN_all_timepoints_down %>% filter(Time.points   == "acute")%>%  dplyr::select(Gene.symbol)
+VENN_all_timepoints_down_subacute <- VENN_all_timepoints_down %>%  filter(Time.points   == "subacute")%>% dplyr::select(Gene.symbol)
+VENN_all_timepoints_down_longterm <- VENN_all_timepoints_down %>% filter(Time.points   == "long-term")%>%  dplyr::select(Gene.symbol) 
+VENN_all_timepoints_down_unknown <- VENN_all_timepoints_down %>% filter(Time.points   == "unknown")%>%  dplyr::select(Gene.symbol)
+
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_down_timepoint <- venn.diagram(
+    list(acute = VENN_all_timepoints_down_acute$Gene.symbol, 
+         subacute = VENN_all_timepoints_down_subacute$Gene.symbol, 
+         longterm= VENN_all_timepoints_down_longterm$Gene.symbol
+        # unknown= VENN_all_timepoints_down_unknown$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Downregulated Genes TimePoint", 
+    fill = c("red", "blue", "green"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_down_timepoint)
+
+
+VENN_all_timepoints_up <- df_all_timepoints %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  filter(logFC >0)
+
+
+VENN_all_timepoints_up_acute <- VENN_all_timepoints_up %>% filter(Time.points   == "acute")%>%  dplyr::select(Gene.symbol)
+VENN_all_timepoints_up_subacute <- VENN_all_timepoints_up %>%  filter(Time.points   == "subacute")%>% dplyr::select(Gene.symbol)
+VENN_all_timepoints_up_longterm <- VENN_all_timepoints_up %>% filter(Time.points   == "long-term")%>%  dplyr::select(Gene.symbol) 
+VENN_all_timepoints_up_unknown <- VENN_all_timepoints_up %>% filter(Time.points   == "unknown")%>%  dplyr::select(Gene.symbol)
+
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_up_timepoint <- venn.diagram(
+    list(acute = VENN_all_timepoints_up_acute$Gene.symbol, 
+         subacute = VENN_all_timepoints_up_subacute$Gene.symbol, 
+         longterm= VENN_all_timepoints_up_longterm$Gene.symbol
+        # unknown= VENN_all_timepoints_up_unknown$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Upregulated Genes TimePoint", 
+    fill = c("red", "blue", "green"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_up_timepoint)
+
+
+# Stroke model
+
+df_all_stroke <- df_all %>% group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC))
+
+table25down_stroke <- df_all_stroke  %>%
+  arrange(logFC) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25up_stroke  <- df_all_stroke %>%
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25_stroke <- table25up_stroke %>% bind_rows(table25down_stroke) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_stroke, "Tables/table25_stroke.xlsx")
+
+# Venn Diagram
+
+VENN_all_strokemodel_down <- df_all_stroke %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC <0)
+
+
+VENN_all_strokemodel_down_pmcao <- VENN_all_strokemodel_down %>% filter(Stroke.model   == "pMCAO")%>%  dplyr::select(Gene.symbol)
+VENN_all_strokemodel_down_tmcao <- VENN_all_strokemodel_down %>%  filter(Stroke.model   == "tMCAO")%>% dplyr::select(Gene.symbol)
+VENN_all_strokemodel_down_pt <- VENN_all_strokemodel_down %>% filter(Stroke.model   == "photothrombotic stroke")%>%  dplyr::select(Gene.symbol) 
+VENN_all_strokemodel_down_natural <- VENN_all_strokemodel_down %>% filter(Stroke.model   == "natural")%>%  dplyr::select(Gene.symbol)
+
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_down_strokemodel <- venn.diagram(
+    list(pmcao = VENN_all_strokemodel_down_pmcao$Gene.symbol, 
+         tmcao = VENN_all_strokemodel_down_tmcao$Gene.symbol, 
+         pt= VENN_all_strokemodel_down_pt$Gene.symbol,
+         natural= VENN_all_strokemodel_down_natural$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',4), 
+    main="Downregulated Genes StrokeModel", 
+    fill = c("red", "blue", "green", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_down_strokemodel)
+
+
+
+VENN_all_strokemodel_up <- df_all_stroke %>% 
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC >0)
+
+
+VENN_all_strokemodel_up_pmcao <- VENN_all_strokemodel_up %>% filter(Stroke.model   == "pMCAO")%>%  dplyr::select(Gene.symbol)
+VENN_all_strokemodel_up_tmcao <- VENN_all_strokemodel_up %>%  filter(Stroke.model   == "tMCAO")%>% dplyr::select(Gene.symbol)
+VENN_all_strokemodel_up_pt <- VENN_all_strokemodel_up %>% filter(Stroke.model   == "photothrombotic stroke")%>%  dplyr::select(Gene.symbol) 
+VENN_all_strokemodel_up_natural <- VENN_all_strokemodel_up %>% filter(Stroke.model   == "natural")%>%  dplyr::select(Gene.symbol)
+
+
+futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # suppress log
+
+venn_up_strokemodel <- venn.diagram(
+    list(pmcao = VENN_all_strokemodel_up_pmcao$Gene.symbol, 
+         tmcao = VENN_all_strokemodel_up_tmcao$Gene.symbol, 
+         pt= VENN_all_strokemodel_up_pt$Gene.symbol,
+         narual= VENN_all_strokemodel_up_natural$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',4), 
+    main="Upregulated Genes StrokeModel",  
+    fill = c("red", "blue", "green", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(venn_up_timepoint)
+
+
+ggsave(venn_down_species, file="VennDiagramm/venn_down_species.pdf", device = "pdf", width = 5, height = 5)
+ggsave(venn_up_species, file="VennDiagramm/venn_up_species.pdf", device = "pdf", width = 5, height = 5)
+ggsave(venn_down_timepoint, file="VennDiagramm/venn_down_timepoint.pdf", device = "pdf", width = 5, height = 5)
+ggsave(venn_up_timepoint, file="VennDiagramm/venn_up_timepoint.pdf", device = "pdf", width = 5, height = 5)
+
+ggsave(venn_down_strokemodel, file="VennDiagramm/venn_down_strokemodel.pdf", device = "pdf", width = 5, height = 5)
+ggsave(venn_up_strokemodel, file="VennDiagramm/venn_up_strokemodel.pdf", device = "pdf", width = 5, height = 5)
+
+```
+
+# (4.0) 
+# (4.0) Result 1: Species: Mouse vs Rat
+
+```{r}
+count_df_all_species <- df_all %>%
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  #filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  group_by(Gene.symbol) %>% 
+  filter( n() > 5) %>%
+  group_by(Species, Time.points) %>% 
+  mutate(Upregulated = ifelse(Regulation =="Upregulated","Upregulated" ,"Downregulated")) %>%
+  summarise(upregulated = sum(Upregulated == "Upregulated"), 
+            downregulated = sum(Upregulated == "Downregulated")) %>%
+  gather(Change, Value, upregulated, downregulated)
+
+count_df_all_species$Time.points <- factor(count_df_all_species$Time.points, levels = c("acute", "subacute", "long-term"))
+
+p <- ggplot(data=count_df_all_species, aes(x=Species, y=Value, fill=Change)) +
+geom_bar(stat="identity", color="black", position=position_dodge())+
+  facet_wrap(Time.points~Change, nrow=1)+
+  scale_fill_manual(values=c('#999999','#E69F00'))+
+  theme_minimal()
+p
+
+ggsave("Upregulated_Downregulated/Up_down_Regulated_All_Species.pdf", p, width = 6, height = 3)
+
+```
+
+
+# (4.1) Venn Diagram
+
+```{r}
+
+# Stroke model
+
+df_all_species_tmcao_24 <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "subacute") %>%
+  filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) 
+
+
+
+
+
+
+VENN_all_species_tmcao_24_up_mouse <- df_all_species_tmcao_24  %>% filter(Species == "Mouse") %>%
+ filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC > 0)
+
+
+
+VENN_all_species_tmcao_24_up_rat <- df_all_species_tmcao_24  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+    filter(logFC > 0)
+
+
+# Downregulation
+
+VENN_all_species_tmcao_24_down_mouse <- df_all_species_tmcao_24  %>%  filter(Species == "Mouse") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+VENN_all_species_tmcao_24_down_rat <- df_all_species_tmcao_24  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+# tmcao longterm
+# Stroke model
+df_all_species_tmcao_lt <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "long-term") %>%
+  filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC))
+
+
+
+#df_all_species_tmcao_lt <- df_all_species_tmcao_lt %>%
+#   group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+VENN_all_species_tmcao_lt_up_mouse <- df_all_species_tmcao_lt  %>%  filter(Species == "Mouse") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC > 0)
+
+VENN_all_species_tmcao_lt_up_rat <- df_all_species_tmcao_lt  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC > 0)
+
+
+# Downregulation
+
+VENN_all_species_tmcao_lt_down_mouse <- df_all_species_tmcao_lt  %>%  filter(Species == "Mouse") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+VENN_all_species_tmcao_lt_down_rat <- df_all_species_tmcao_lt  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+
+# pMCAO
+
+df_all_species_pmcao_6 <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "acute") %>%
+  filter(Stroke.model %in% c("pMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC))
+
+
+#df_all_species_pmcao_6 <- df_all_species_pmcao_6 %>%
+#   group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+VENN_all_species_pmcao_6_up_mouse <- df_all_species_pmcao_6  %>%  filter(Species == "Mouse") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC > 0)
+
+VENN_all_species_pmcao_6_up_rat <- df_all_species_pmcao_6  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC > 0)
+
+
+# Downregulation
+
+VENN_all_species_pmcao_6_down_mouse <- df_all_species_pmcao_6  %>%  filter(Species == "Mouse") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+VENN_all_species_pmcao_6_down_rat <- df_all_species_pmcao_6  %>% filter(Species == "Rat") %>%
+   filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC < 0)
+
+
+
+# Plot
+# tMCAO subacute
+
+VENN_all_species_tmcao_24_up <- venn.diagram(
+    list(mouse = VENN_all_species_tmcao_24_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_tmcao_24_up_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species tMCAO 24h",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_tmcao_24_up)
+
+
+
+VENN_all_species_tmcao_24_down<- venn.diagram(
+    list(mouse = VENN_all_species_tmcao_24_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_tmcao_24_down_rat$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Genes Species tMCAO 24h",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_tmcao_24_down)
+
+
+# long-term tmcao
+
+VENN_all_species_tmcao_lt_up <- venn.diagram(
+    list(mouse = VENN_all_species_tmcao_lt_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_tmcao_lt_up_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species tMCAO longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_tmcao_lt_up)
+
+
+
+VENN_all_species_tmcao_lt_down <- venn.diagram(
+    list(mouse = VENN_all_species_tmcao_lt_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_tmcao_lt_down_rat$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Genes Species tMCAO longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_tmcao_lt_down)
+
+
+
+# pmcao acute
+VENN_all_species_pmcao_6_up <- venn.diagram(
+    list(mouse = VENN_all_species_pmcao_6_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_pmcao_6_up_rat$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Genes Species pMCao acute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_pmcao_6_up)
+
+
+
+VENN_all_species_pmcao_6_down <- venn.diagram(
+    list(mouse = VENN_all_species_pmcao_6_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_pmcao_6_down_rat$Gene.symbol
+        ), 
+                              
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Genes Species pMCAO acute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_pmcao_6_down)
+
+
+
+ggsave(VENN_all_species_tmcao_24_up, file="Venn_DetailedAnalysis/Species/tmcao_24up5000.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_tmcao_24_down, file="Venn_DetailedAnalysis/Species/tmcao_24down5000.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_tmcao_lt_down, file="Venn_DetailedAnalysis/Species/tmcao_ltdown5000.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_pmcao_6_down, file="Venn_DetailedAnalysis/Species/pmcao_6down5000.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_tmcao_lt_up, file="Venn_DetailedAnalysis/Species/tmcao_ltup5000.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_pmcao_6_up, file="Venn_DetailedAnalysis/Species/pmcao_6up5000.pdf", device = "pdf", width = 5, height = 5)
+
+
+
+```
+
+Which pathways are enriched in mouse 
+
+
+```{r}
+
+# tmcao 
+# subacute
+FC_rat_mouse_tmcao_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "subacute") %>%
+  filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_tmcao <- FC_rat_mouse_tmcao_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_tmcao$Gene.symbol <-  str_to_title(FC_rat_mouse_tmcao$Gene.symbol) 
+
+FC_rat_mouse_tmcao_list <- data.frame(as.list(FC_rat_mouse_tmcao))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+
+# tmcao longterm
+FC_rat_mouse_tmcao_lt_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "long-term") %>%
+  filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_tmcao_lt <- FC_rat_mouse_tmcao_lt_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_tmcao_lt$Gene.symbol <-  str_to_title(FC_rat_mouse_tmcao_lt$Gene.symbol) 
+
+FC_rat_mouse_tmcao_lt_list <- data.frame(as.list(FC_rat_mouse_tmcao_lt))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+
+## pMcao
+
+FC_rat_mouse_pmcao_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "acute") %>%
+  filter(Stroke.model %in% c("pMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_pmcao <- FC_rat_mouse_pmcao_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_pmcao$Gene.symbol <-  str_to_title(FC_rat_mouse_pmcao$Gene.symbol) 
+
+
+FC_rat_mouse_pmcao_list <- data.frame(as.list(FC_rat_mouse_pmcao))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+
+
+# GSE
+
+gse_rat_mouse_tmcao <-gseGO(geneList=FC_rat_mouse_tmcao_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_tmcao<- simplify(gse_rat_mouse_tmcao, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_rat_mouse_lt_tmcao <-gseGO(geneList=FC_rat_mouse_tmcao_lt_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_lt_tmcao <- simplify(gse_rat_mouse_lt_tmcao, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_rat_mouse_pmcao <-gseGO(geneList=FC_rat_mouse_pmcao_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_pmcao <- simplify(gse_rat_mouse_pmcao, cutoff=0.7, by="p.adjust", select_fun=min)
+
+```
+
+
+
+```{r fig.height=8, fig.width=20}
+
+mybreaks = c(10^-9, 10^-7, 10^-5, 10^-3, 0.01, 0.1, 1) # pvalue scale
+
+gse_rat_mouse_tmcao2 <- gse_rat_mouse_tmcao %>% filter(setSize >100)
+gse_rat_mouse_lt_tmcao2 <- gse_rat_mouse_lt_tmcao %>% filter(setSize >100)
+gse_rat_mouse_pmcao2 <- gse_rat_mouse_pmcao %>% filter(setSize >100)
+
+
+aa_DotPlotRich <- ggplot(gse_rat_mouse_tmcao2, showCategory =15,
+aes(NES, fct_reorder(Description, NES))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse tmcao subacute")+
+theme_bw()
+#aa_DotPlotRich
+
+bb_DotPlotRich <- ggplot(gse_rat_mouse_lt_tmcao2, showCategory =15,
+aes(NES, fct_reorder(Description, NES))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse tmcao long-term")+
+theme_bw()
+#bb_DotPlotRich
+
+cc_DotPlotRich <- ggplot(gse_rat_mouse_pmcao2, showCategory =15,
+aes(NES, fct_reorder(Description, NES))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse pmcao acute")+
+theme_bw()
+#cc_DotPlotRich
+
+PLOT_all_species_enrichment <- plot_grid(aa_DotPlotRich,bb_DotPlotRich,cc_DotPlotRich, align = "v", ncol = 3)
+PLOT_all_species_enrichment
+
+ggsave("Enrichment_DetailedAnalysis/PLOT_all_species_enrichment.pdf" ,PLOT_all_species_enrichment, width = 25, height = 10,  useDingbats=F)
+
+
+
+```
+
+# Let's do the same for tMCAo and pMCAo together ###
+
+```{r}
+
+# Stroke model
+# acute #####
+
+df_mr_species_acute <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "acute") %>%
+  #filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+# Table 
+
+table25down_species_acute<- df_mr_species_acute %>%
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25up_species_acute<- df_mr_species_acute %>%
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25_species_acute <- table25up_species_acute %>% bind_rows(table25down_species_acute) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_species_acute, "Tables/table25_MR_species_acute.xlsx")
+
+# End of table
+
+
+VENN_all_species_acute_up_mouse <- df_mr_species_acute  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.25) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC >0)
+
+VENN_all_species_acute_up_rat <- df_mr_species_acute  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC >0)
+
+
+# Downregulation
+
+VENN_all_species_acute_down_mouse <- df_mr_species_acute  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC <0)
+
+VENN_all_species_acute_down_rat <- df_mr_species_acute  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+   filter(logFC <0)
+
+
+# Plot
+# acute
+
+VENN_all_species_acute_up <- venn.diagram(
+    list(mouse = VENN_all_species_acute_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_acute_up_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species acute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_acute_up)
+
+
+VENN_all_species_acute_down <- venn.diagram(
+    list(mouse = VENN_all_species_acute_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_acute_down_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Species acute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_acute_down)
+
+################################# subacute #####
+
+
+df_mr_species_subacute <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "subacute") %>%
+  #filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC))  %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+#df_all_species_tmcao_lt <- df_all_species_tmcao_lt %>%
+#   group_by(Gene.symbol) %>% filter( n() > 1 )
+
+# Table 
+
+table25down_species_subacute<- df_mr_species_subacute %>%
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25up_species_subacute<- df_mr_species_subacute %>%
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25_species_subacute <- table25up_species_subacute %>% bind_rows(table25down_species_subacute) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_species_subacute, "Tables/table25_MR_species_subacute.xlsx")
+
+# End of table
+
+
+
+
+VENN_all_species_subacute_up_mouse <- df_mr_species_subacute  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  filter(logFC >0)
+
+VENN_all_species_subacute_up_rat <- df_mr_species_subacute  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+   filter(logFC >0)
+
+
+# Downregulation
+
+VENN_all_species_subacute_down_mouse <- df_mr_species_subacute  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC <0)
+  
+
+VENN_all_species_subacute_down_rat <- df_mr_species_subacute  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+   filter(logFC <0)
+
+
+# Plot
+# tMCAO subsubacute
+
+VENN_all_species_subacute_up <- venn.diagram(
+    list(mouse = VENN_all_species_subacute_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_subacute_up_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species subacute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_subacute_up)
+
+
+VENN_all_species_subacute_down <- venn.diagram(
+    list(mouse = VENN_all_species_subacute_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_subacute_down_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Species subacute",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_subacute_down)
+
+
+########### long-term #####
+
+df_mr_species_longterm <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "long-term") %>%
+  #filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC))  %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+# Table 
+
+table25down_species_longterm<- df_mr_species_longterm %>%
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25up_species_longterm<- df_mr_species_longterm %>%
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+  slice(1:30)
+
+table25_species_longterm <- table25up_species_longterm %>% bind_rows(table25down_species_longterm) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_species_longterm, "Tables/table25_MR_species_longterm.xlsx")
+
+# End of table
+VENN_all_species_longterm_up_mouse <- df_mr_species_longterm  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+   filter(logFC >0)
+
+VENN_all_species_longterm_up_rat <- df_mr_species_longterm  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Species) %>%
+   filter(logFC >0)
+
+
+# Downregulation
+
+VENN_all_species_longterm_down_mouse <- df_mr_species_longterm  %>%  filter(Species == "Mouse") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC <0)
+
+VENN_all_species_longterm_down_rat <- df_mr_species_longterm  %>% filter(Species == "Rat") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Species) %>%
+  filter(logFC <0)
+
+
+# Plot
+ #longterm
+
+VENN_all_species_longterm_up <- venn.diagram(
+    list(mouse = VENN_all_species_longterm_up_mouse$Gene.symbol, 
+         rat = VENN_all_species_longterm_up_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_longterm_up)
+
+
+VENN_all_species_longterm_down <- venn.diagram(
+    list(mouse = VENN_all_species_longterm_down_mouse$Gene.symbol, 
+         rat = VENN_all_species_longterm_down_rat$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Species longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_species_longterm_down)
+
+
+ggsave(VENN_all_species_acute_up, file="Venn_DetailedAnalysis/Species/VENN_all_species_acute_up2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_acute_down, file="Venn_DetailedAnalysis/Species/VENN_all_species_acute_down2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_subacute_up, file="Venn_DetailedAnalysis/Species/VENN_all_species_subacute_up2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_subacute_down, file="Venn_DetailedAnalysis/Species/VENN_all_species_subacute_down2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_longterm_up, file="Venn_DetailedAnalysis/Species/VENN_all_species_longterm_up2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_species_longterm_down, file="Venn_DetailedAnalysis/Species/VENN_all_species_longterm_down2.pdf", device = "pdf", width = 5, height = 5)
+
+```
+
+Enrichment
+
+```{r}
+# Enrichment acute ####
+
+FC_rat_mouse_acute_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "acute") %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_acute <- FC_rat_mouse_acute_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_acute$Gene.symbol <-  str_to_title(FC_rat_mouse_acute$Gene.symbol) 
+
+FC_rat_mouse_acute_list <- data.frame(as.list(FC_rat_mouse_acute))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+gse_rat_mouse_acute <-gseGO(geneList=FC_rat_mouse_acute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+# Enrichment subacute ####
+
+FC_rat_mouse_subacute_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "subacute") %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_subacute <- FC_rat_mouse_subacute_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_subacute$Gene.symbol <-  str_to_title(FC_rat_mouse_subacute$Gene.symbol) 
+
+FC_rat_mouse_subacute_list <- data.frame(as.list(FC_rat_mouse_subacute))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+gse_rat_mouse_subacute <-gseGO(geneList=FC_rat_mouse_subacute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+
+#gse_rat_mouse_subacute<- simplify(gse_rat_mouse_subacute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+
+# Enrichment longterm ####
+
+FC_rat_mouse_longterm_pre <- df_all %>% 
+   filter(Species %in% c("Mouse", "Rat")) %>% 
+  filter(Time.points == "long-term") %>%
+  group_by(Species, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+FC_rat_mouse_longterm <- FC_rat_mouse_longterm_pre %>% 
+  spread(Species, logFC) %>%
+  mutate(Rat_Mouse = Rat-Mouse) %>%
+  ungroup()%>%
+  dplyr::select(-Mouse, -Rat)
+
+  
+FC_rat_mouse_longterm$Gene.symbol <-  str_to_title(FC_rat_mouse_longterm$Gene.symbol) 
+
+FC_rat_mouse_longterm_list <- data.frame(as.list(FC_rat_mouse_longterm))%>%
+  arrange(desc(abs(Rat_Mouse)))%>%
+  deframe() %>%
+  sort(decreasing = T) %>% 
+  na.omit() 
+
+gse_rat_mouse_longterm <-gseGO(geneList=FC_rat_mouse_longterm_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_longterm<- simplify(gse_rat_mouse_longterm, cutoff=0.7, by="p.adjust", select_fun=min)
+
+
+```
+# (4.1) Result 1: Plot of enrichment GSE #
+
+```{r fig.height=8, fig.width=30}
+mybreaks = c(10^-9, 10^-7, 10^-5, 10^-3, 0.01, 0.1, 1) # pvalue scale
+
+gse_rat_mouse_acute2 <- gse_rat_mouse_acute %>% filter(setSize >100)
+gse_rat_mouse_subacute2 <- gse_rat_mouse_subacute %>% filter(setSize >100)
+gse_rat_mouse_longterm2 <- gse_rat_mouse_longterm %>% filter(setSize >100)
+
+
+# Table Export
+table_gse_rat_mouse_acute2 <- gse_rat_mouse_acute2@result %>% arrange((p.adjust)) %>%   slice(1:30)
+table_gse_rat_mouse_subacute2 <- gse_rat_mouse_subacute2@result%>% arrange((p.adjust))  %>% slice(1:30)
+table_gse_rat_mouse_longterm2 <- gse_rat_mouse_longterm2@result %>% arrange((p.adjust)) %>%  slice(1:30)
+
+write_xlsx(table_gse_rat_mouse_acute2, "Table_GSE/table_gse_rat_mouse_acute.xlsx")
+write_xlsx(table_gse_rat_mouse_subacute2, "Table_GSE/table_gse_rat_mouse_subacute.xlsx")
+write_xlsx(table_gse_rat_mouse_longterm2, "Table_GSE/table_gse_rat_mouse_lt.xlsx")
+
+
+# Table Export End
+
+aaa_DotPlotRich <- ggplot(gse_rat_mouse_acute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse acute")+
+theme_bw()
+
+bbb_DotPlotRich <- ggplot(gse_rat_mouse_subacute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse subacute")+
+theme_bw()
+
+ccc_DotPlotRich <- ggplot(gse_rat_mouse_longterm2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE Rat Mouse longterm")+
+theme_bw()
+
+PLOT_all_species_enrichment2 <- plot_grid(aaa_DotPlotRich,bbb_DotPlotRich,ccc_DotPlotRich, align = "v", ncol = 3)
+PLOT_all_species_enrichment2
+
+ggsave("Enrichment_DetailedAnalysis/PLOT_all_species_enrichment_All_only5.pdf" ,PLOT_all_species_enrichment2, width = 15, height = 3.5,  useDingbats=F)
+
+
+
+```
+
+
+
+
+CNET Plots
+
+```{r fig.height=8, fig.width=30}
+
+aa_cnet_plot <- cnetplot(gse_rat_mouse_acute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_rat_mouse_acute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("Rat_Mouse_Acute")
+
+
+bb_cnet_plot <- cnetplot(gse_rat_mouse_subacute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_rat_mouse_subacute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("Rat_Mouse_Subacute")
+
+
+cc_cnet_plot <- cnetplot(gse_rat_mouse_longterm2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_rat_mouse_longterm_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("Rat_Mouse_Longterm")
+
+PLOT_cnet_plot_rat_mouse <- plot_grid(aa_cnet_plot,bb_cnet_plot,cc_cnet_plot, align = "v", ncol = 3)
+PLOT_cnet_plot_rat_mouse
+
+# ggsave("Enrichment_DetailedAnalysis/PLOT_CNET_all_species_enrichment_All.pdf" ,PLOT_cnet_plot_rat_mouse, width = 35, height = 10,  useDingbats=F)
+
+```
+
+
+#(5.0) Result 2 tMCAo vs pMCao vs photothrombotic stroke Venn Diagram #
+
+```{r}
+count_df_all_stroke_models <- df_all %>%
+  filter(Species %in% c("Mouse", "Rat")) %>% 
+ # filter(Stroke.model %in% c("tMCAO")) %>%
+  group_by(Time.points, Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  group_by(Gene.symbol) %>% 
+  filter( n() > 6) %>%
+  group_by(Stroke.model, Time.points) %>% 
+  mutate(Upregulated = ifelse(Regulation =="Upregulated","Upregulated" ,"Downregulated")) %>%
+  summarise(upregulated = sum(Upregulated == "Upregulated"), 
+            downregulated = sum(Upregulated == "Downregulated")) %>%
+  gather(Change, Value, upregulated, downregulated)
+
+count_df_all_stroke_models$Time.points <- factor(count_df_all_stroke_models$Time.points, levels = c("acute", "subacute", "long-term"))
+count_df_all_stroke_models$Stroke.model <- factor(count_df_all_stroke_models$Stroke.model, levels = c("tMCAO", "pMCAO", "photothrombotic stroke"))
+
+
+q <- ggplot(data=count_df_all_stroke_models, aes(x=Stroke.model, y=Value, fill=Change)) +
+geom_bar(stat="identity", color="black", position=position_dodge())+
+  facet_wrap(Time.points~Change, nrow=1)+
+  scale_fill_manual(values=c('#999999','#E69F00'))+
+  theme_minimal()
+q
+
+# ggsave("Upregulated_Downregulated/Up_down_Regulated_StrokeModel.pdf", q, width = 6, height = 3)
+```
+
+
+
+Many say photothrombotic model not suitable for acute injury. However, what about long-term transcriptome profile? Mouse acute: tmcao/pmcao vs. long-term tmcao/pmcao/photothrombosis
+
+```{r}
+# Data
+# acute mouse tmcao vs. pmcao
+
+df_all_acute_tmcao_pmcao <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Time.points %in% c("acute")) %>%
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+# Table 
+
+table25down_acute_tmcao_pmcao<- df_all_acute_tmcao_pmcao %>%
+  arrange(logFC) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25up_acute_tmcao_pmcao<- df_all_acute_tmcao_pmcao %>%
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25_acute_tmcao_pmcao <- table25up_acute_tmcao_pmcao %>% bind_rows(table25down_acute_tmcao_pmcao) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_acute_tmcao_pmcao, "Tables/table25_stroke_model_acute_tmcao_pmcao.xlsx")
+
+# End of table
+
+df_all_lt_tmcao_pmcao_pt <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  # take it from mice and rats
+  filter(Time.points %in% c("long-term")) %>%
+  filter(Stroke.model %in% c("tMCAO", "pMCAO", "photothrombotic stroke")) %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+# Table 
+
+table25down_lt_tmcao_pmcao_pt<- df_all_lt_tmcao_pmcao_pt %>%
+  arrange(logFC) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25up_lt_tmcao_pmcao_pt<- df_all_lt_tmcao_pmcao_pt %>%
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  slice(1:30)
+
+table25_lt_tmcao_pmcao_pt <- table25up_lt_tmcao_pmcao_pt %>% bind_rows(table25down_lt_tmcao_pmcao_pt) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_lt_tmcao_pmcao_pt, "Tables/table25_stroke_model_lt_tmcao_pmcao_pt.xlsx")
+
+# End of table
+
+
+### Venn Dataframe
+## Acute
+# tmcao up
+VENN_all_models_acute_tmcao_up <- df_all_acute_tmcao_pmcao  %>% filter(Stroke.model =="tMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC > 0)
+
+
+## Acute
+# pmcao up
+VENN_all_models_acute_pmcao_up <- df_all_acute_tmcao_pmcao  %>% filter(Stroke.model =="pMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC > 0)
+
+## Acute
+# tmcao down
+VENN_all_models_acute_tmcao_down <- df_all_acute_tmcao_pmcao  %>% filter(Stroke.model =="tMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange((logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC < 0)
+
+## Acute
+# pmcao dpwn
+VENN_all_models_acute_pmcao_down <- df_all_acute_tmcao_pmcao  %>% filter(Stroke.model =="pMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange((logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC < 0)
+
+
+### Venn Dataframe 
+##longterm
+# tmcao up
+VENN_all_models_lt_tmcao_up <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="tMCAO") %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  filter(abs(logFC) > 0.5) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC > 0)
+
+##longterm
+# pmcao up
+VENN_all_models_lt_pmcao_up <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="pMCAO") %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  filter(abs(logFC) > 0.5) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC > 0)
+
+##longterm
+# pt up 
+VENN_all_models_lt_pt_up <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="photothrombotic stroke") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC >0)
+
+
+
+##longterm
+# tmcao down
+VENN_all_models_lt_tmcao_down <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="tMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange((logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC <0)
+
+##longterm
+# pmcao down
+VENN_all_models_lt_pmcao_down <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="pMCAO") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange((logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC <0)
+
+##longterm
+# pt down 
+VENN_all_models_lt_pt_down <- df_all_lt_tmcao_pmcao_pt  %>% filter(Stroke.model =="photothrombotic stroke") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange((logFC)) %>%
+  group_by(Stroke.model) %>%
+  filter(logFC <0)
+
+
+```
+
+Plot Venn stroke model
+
+```{r}
+# Plot
+# tMCAO pmcao acute up
+
+VENN_all_models_acute_up <- venn.diagram(
+    list(tmcao = VENN_all_models_acute_tmcao_up$Gene.symbol, 
+         pmcao = VENN_all_models_acute_pmcao_up$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Upregulated Species longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_models_acute_up)
+
+
+VENN_all_models_acute_down <- venn.diagram(
+    list(tmcao = VENN_all_models_acute_tmcao_down$Gene.symbol, 
+         pmcao = VENN_all_models_acute_pmcao_down$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',2), 
+    main="Downregulated Species longterm",  
+    fill = c("red", "yellow"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_models_acute_down)
+
+
+#### longterm
+
+VENN_all_models_lt_up <- venn.diagram(
+    list(tmcao = VENN_all_models_lt_tmcao_up$Gene.symbol, 
+         pmcao = VENN_all_models_lt_pmcao_up$Gene.symbol,
+         pt = VENN_all_models_lt_pt_up$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Upregulated Species longterm",  
+    fill = c("red", "yellow", "green"),
+    print.mode = c("raw", "percent"))
+grid.draw(VENN_all_models_lt_up)
+
+
+VENN_all_models_lt_down <- venn.diagram(
+    list(tmcao = VENN_all_models_lt_tmcao_down$Gene.symbol, 
+         pmcao = VENN_all_models_lt_pmcao_down$Gene.symbol,
+         pt = VENN_all_models_lt_pt_down$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Downregulated Species longterm",  
+    fill = c("red", "yellow", "green"),
+    print.mode = c("raw", "percent", "green"))
+grid.draw(VENN_all_models_lt_down)
+
+ggsave(VENN_all_models_acute_up, file="Venn_DetailedAnalysis/Model/VENN_all_models_acute_up5000_2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_models_acute_down, file="Venn_DetailedAnalysis/Model/VENN_all_models_acute_down5000_2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_models_lt_up, file="Venn_DetailedAnalysis/Model/VENN_all_models_lt_up5000_2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_models_lt_down, file="Venn_DetailedAnalysis/Model/VENN_all_models_lt_down5000_2.pdf", device = "pdf", width = 5, height = 5)
+
+```
+
+#(5.1)Result 2 GSE Enrichment stroke model #
+
+```{r}
+# acute ####
+
+FC_pMCAO_tMCAO_acute_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>% 
+  filter(Time.points == "acute") %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+FC_pMCAO_tMCAO_lt_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>% 
+  filter(Time.points == "long-term") %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+FC_pt_tMCAO_lt_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "photothrombotic stroke")) %>% 
+  filter(Time.points == "long-term") %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+FC_pt_pMCAO_lt_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("photothrombotic stroke", "pMCAO")) %>% 
+  filter(Time.points == "long-term") %>%
+  group_by(Stroke.model, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+# Log2 - 
+# Acute
+FC_pMCAO_tMCAO_acute <- FC_pMCAO_tMCAO_acute_pre %>%
+    spread(Stroke.model, logFC) %>%
+  mutate(pMCAO_tMCAO = pMCAO-tMCAO) %>%
+  ungroup()%>%
+  dplyr::select(-pMCAO, -tMCAO)
+
+
+# Longterm
+
+FC_pMCAO_tMCAO_lt <- FC_pMCAO_tMCAO_lt_pre %>%
+    spread(Stroke.model, logFC) %>%
+  mutate(pMCAO_tMCAO = pMCAO-tMCAO) %>%
+  ungroup()%>%
+  dplyr::select(-pMCAO, -tMCAO)
+
+FC_pt_tMCAO_lt <- FC_pt_tMCAO_lt_pre %>%
+    spread(Stroke.model, logFC) %>%
+  mutate(pt_tMCAO = `photothrombotic stroke`-tMCAO) %>%
+  ungroup()%>%
+  dplyr::select(-`photothrombotic stroke`, -tMCAO)
+
+FC_pt_pMCAO_lt <- FC_pt_pMCAO_lt_pre %>%
+    spread(Stroke.model, logFC) %>%
+  mutate(pt_pMCAO = `photothrombotic stroke`-pMCAO) %>%
+  ungroup()%>%
+  dplyr::select(-pMCAO, -`photothrombotic stroke`)
+
+
+
+FC_pMCAO_tMCAO_acute$Gene.symbol <-  str_to_title(FC_pMCAO_tMCAO_acute$Gene.symbol) 
+
+FC_pMCAO_tMCAO_lt$Gene.symbol <-  str_to_title(FC_pMCAO_tMCAO_lt$Gene.symbol) 
+FC_pt_tMCAO_lt$Gene.symbol <-  str_to_title(FC_pt_tMCAO_lt$Gene.symbol) 
+FC_pt_pMCAO_lt$Gene.symbol <-  str_to_title(FC_pt_pMCAO_lt$Gene.symbol) 
+
+
+FC_pMCAO_tMCAO_acute_list <- data.frame(as.list(FC_pMCAO_tMCAO_acute))%>% arrange(desc(abs(pMCAO_tMCAO)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+FC_pMCAO_tMCAO_lt_list <- data.frame(as.list(FC_pMCAO_tMCAO_lt))%>% arrange(desc(abs(pMCAO_tMCAO)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+FC_pt_tMCAO_lt_list <- data.frame(as.list(FC_pt_tMCAO_lt))%>% arrange(desc(abs(pt_tMCAO)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+FC_pt_pMCAO_lt_list <- data.frame(as.list(FC_pt_pMCAO_lt))%>% arrange(desc(abs(pt_pMCAO)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+
+
+
+gse_pMCAO_tMCAO_acute <-gseGO(geneList=FC_pMCAO_tMCAO_acute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+
+
+
+gse_pMCAO_tMCAO_lt <-gseGO(geneList=FC_pMCAO_tMCAO_lt_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_pt_tMCAO_lt <-gseGO(geneList=FC_pt_tMCAO_lt_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_pt_pMCAO_lt <-gseGO(geneList=FC_pt_pMCAO_lt_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+
+
+```
+
+Plot
+
+```{r fig.height=8, fig.width=30}
+mybreaks = c(10^-9, 10^-7, 10^-5, 10^-3, 0.01, 0.1, 1) # pvalue scale
+
+gse_pMCAO_tMCAO_acute2 <- gse_pMCAO_tMCAO_acute %>% filter(setSize >100)
+gse_pMCAO_tMCAO_lt2 <- gse_pMCAO_tMCAO_lt %>% filter(setSize >100)
+gse_pt_tMCAO_lt2 <- gse_pt_tMCAO_lt %>% filter(setSize >100)
+gse_pt_pMCAO_lt2 <- gse_pt_pMCAO_lt %>% filter(setSize >100)
+
+# Table Export
+table_gse_pMCAO_tMCAO_acute2 <- gse_pMCAO_tMCAO_acute2@result %>% arrange((p.adjust)) %>%  slice(1:30)
+table_gse_pMCAO_tMCAO_lt2 <- gse_pMCAO_tMCAO_lt2@result%>%  arrange((p.adjust)) %>% slice(1:30)
+table_gse_pt_tMCAO_lt2 <- gse_pt_tMCAO_lt2@result %>% arrange((p.adjust))  %>%   slice(1:30)
+table_gse_pt_pMCAO_lt2 <- gse_pt_pMCAO_lt2@result %>% arrange((p.adjust))  %>%   slice(1:30)
+
+
+write_xlsx(table_gse_pMCAO_tMCAO_acute2, "Table_GSE/table_gse_pMCAO_tMCAO_acute2.xlsx")
+write_xlsx(table_gse_pMCAO_tMCAO_lt2, "Table_GSE/table_gse_pMCAO_tMCAO_lt2.xlsx")
+write_xlsx(table_gse_pt_tMCAO_lt2, "Table_GSE/table_gse_pt_tMCAO_lt2.xlsx")
+write_xlsx(table_gse_pt_pMCAO_lt2, "Table_GSE/table_gse_pt_pMCAO_lt2.xlsx")
+
+
+
+
+
+aaaa_DotPlotRich <- ggplot(gse_pMCAO_tMCAO_acute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE pmcao tmcao acute")+
+theme_bw()
+
+bbbb_DotPlotRich <- ggplot(gse_pMCAO_tMCAO_lt2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE pmcao tmcao longterm")+
+theme_bw()
+
+
+cccc_DotPlotRich <- ggplot(gse_pt_tMCAO_lt2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE pt tmcao long-term")+
+theme_bw()
+
+dddd_DotPlotRich <- ggplot(gse_pt_pMCAO_lt2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE pt pmcao longterm")+
+theme_bw()
+
+PLOT_all_models_enrichment3 <- plot_grid(aaaa_DotPlotRich,bbbb_DotPlotRich,cccc_DotPlotRich, dddd_DotPlotRich, align = "v", ncol = 4)
+PLOT_all_models_enrichment3
+
+ggsave("Enrichment_DetailedAnalysis/PLOT_all_models_enrichment_All_only5.pdf" ,PLOT_all_models_enrichment3, width = 23, height = 8,  useDingbats=F)
+
+
+
+```
+
+CNET Plot
+
+```{r fig.height=10, fig.width=45}
+aaa_cnet_plot <- cnetplot(gse_pMCAO_tMCAO_acute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_pMCAO_tMCAO_acute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("pMCAO-tMCAO_axute")
+
+
+
+bbb_cnet_plot <- cnetplot(gse_pMCAO_tMCAO_lt2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_pMCAO_tMCAO_lt_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("pMCAO-tMCAO_lt")
+
+
+ccc_cnet_plot <- cnetplot(gse_pt_tMCAO_lt2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_pt_tMCAO_lt_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("pt_tMCAO_lt_list")
+
+
+ddd_cnet_plot <- cnetplot(gse_pt_pMCAO_lt2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_pt_pMCAO_lt_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("pt_pMCAO_lt_list")
+
+PLOT_cnet_plot_strokemodel <- plot_grid(aaa_cnet_plot,bbb_cnet_plot,ccc_cnet_plot, ddd_cnet_plot, align = "v", ncol = 4)
+PLOT_cnet_plot_strokemodel
+
+# ggsave("Enrichment_DetailedAnalysis/PLOT_CNET_all_stroke_models_enrichment_All.pdf" ,PLOT_cnet_plot_strokemodel, width = 45, height = 10,  useDingbats=F)
+
+```
+
+#(6.0) Result Check gene expression acute vs long-term of tMCAO/pMCAO in mice and rats Venn #
+
+```{r}
+
+df_all_timpoints <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Time.points %in% c("acute", "subacute", "long-term")) %>%
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>%
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  group_by(Gene.symbol) %>% 
+  filter( n() > 2) %>%
+  group_by(Time.points) %>% 
+  mutate(Upregulated = ifelse(Regulation =="Upregulated","Upregulated" ,"Downregulated")) %>%
+  summarise(upregulated = sum(Upregulated == "Upregulated"), 
+            downregulated = sum(Upregulated == "Downregulated")) %>%
+  gather(Change, Value, upregulated, downregulated)
+
+
+df_all_timpoints$Time.points <- factor(df_all_timpoints$Time.points, levels = c("acute", "subacute", "long-term"))
+
+
+
+
+r <- ggplot(data=df_all_timpoints, aes(x=Time.points, y=Value, fill=Change)) +
+geom_bar(stat="identity", color="black", position=position_dodge())+
+  facet_wrap(Change~., nrow=1)+
+  scale_fill_manual(values=c('#999999','#E69F00'))+
+  theme_minimal()
+r
+
+# ggsave("Upregulated_Downregulated/Up_down_Regulated_All_Timepoints.pdf", r, width = 6, height = 3)
+```
+
+
+
+```{r}
+# Data
+# acute mouse tmcao vs. pmcao
+
+df_all_timpoints <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Time.points %in% c("acute", "subacute", "long-term")) %>%
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>%
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+df_all_timpoints$Time.points <- factor(df_all_timpoints$Time.points, levels = c("acute", "subacute", "long-term"))
+
+# Table 
+
+table25down_all_timepoints<- df_all_timpoints %>%
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  slice(1:30)
+
+table25up_all_timepoints<- df_all_timpoints %>%
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  slice(1:30)
+
+table25_all_timepoints <- table25up_all_timepoints %>% bind_rows(table25down_all_timepoints) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) 
+
+write_xlsx(table25_all_timepoints, "Tables/table25_all_timepoints.xlsx")
+
+# End of table
+
+
+## VENN Diagram ####
+## acute upregulated
+VENN_all_time_acute_up <- df_all_timpoints  %>% filter(Time.points =="acute") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  filter(logFC > 0) 
+
+
+## subacute upregulated
+VENN_all_time_subacute_up <- df_all_timpoints  %>% filter(Time.points =="subacute") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  filter(logFC > 0) 
+
+
+## longterm upregulated
+VENN_all_time_lt_up <- df_all_timpoints  %>% filter(Time.points =="long-term") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(desc(logFC)) %>%
+  group_by(Time.points) %>%
+  filter(logFC > 0) 
+
+
+## acute downegulated
+VENN_all_time_acute_down <- df_all_timpoints  %>% filter(Time.points =="acute") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  filter(logFC < 0) 
+
+
+## subacute downregulated
+VENN_all_time_subacute_down <- df_all_timpoints  %>% filter(Time.points =="subacute") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  filter(logFC < 0) 
+
+
+## longterm upregulated
+VENN_all_time_lt_down <- df_all_timpoints  %>% filter(Time.points =="long-term") %>%
+  filter(abs(logFC) > 0.5) %>%
+  mutate(Regulation = ifelse(logFC>0, "Upregulated", "Downregulated")) %>%
+  na.omit() %>% # remove all NAs 
+  arrange(logFC) %>%
+  group_by(Time.points) %>%
+  filter(logFC < 0) 
+
+```
+
+PLot Venn Time points
+
+```{r}
+VENN_all_time_up <- venn.diagram(
+    list(acute = VENN_all_time_acute_up$Gene.symbol, 
+         subacute = VENN_all_time_subacute_up$Gene.symbol,
+         lt = VENN_all_time_lt_up$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Upregulated Timepoints",  
+    fill = c("red", "yellow", "green"),
+    print.mode = c("raw", "percent"), 
+    scale = T)
+grid.draw(VENN_all_time_up)
+
+
+VENN_all_time_down <- venn.diagram(
+    list(acute = VENN_all_time_acute_down$Gene.symbol, 
+         subacute = VENN_all_time_subacute_down$Gene.symbol,
+         lt = VENN_all_time_lt_down$Gene.symbol
+        ), 
+    filename = NULL, 
+    na = "none",  
+    lwd=5, 
+    lty =rep('blank',3), 
+    main="Downregulated Timepoints",  
+    fill = c("red", "yellow", "green"),
+    print.mode = c("raw", "percent", "green"))
+grid.draw(VENN_all_time_down)
+
+ggsave(VENN_all_time_up, file="Venn_DetailedAnalysis/Time/VENN_all_time_up5000_2.pdf", device = "pdf", width = 5, height = 5)
+ggsave(VENN_all_time_down, file="Venn_DetailedAnalysis/Time/VENN_all_time_down5000_2.pdf", device = "pdf", width = 5, height = 5)
+
+```
+
+#(6.1) Geneset Enrichment Timepoints #
+
+```{r}
+FC_lt_acute_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>% 
+  filter(Time.points == c("long-term", "acute")) %>%
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+FC_lt_subacute_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>% 
+  filter(Time.points == c("long-term", "subacute")) %>%
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+FC_subacute_acute_pre <- df_all %>% 
+  filter(Species %in% c("Mouse", "Rat")) %>%  
+  filter(Stroke.model %in% c("tMCAO", "pMCAO")) %>% 
+  filter(Time.points == c("subacute", "acute")) %>%
+  group_by(Time.points, Gene.symbol) %>%
+  summarize(logFC = median(logFC)) %>%
+  group_by(Gene.symbol) %>% filter( n() > 1 )
+
+
+# Log2
+
+FC_lt_acute <- FC_lt_acute_pre %>%
+  spread(Time.points, logFC)  %>%
+  mutate(lt_acute = `long-term`-acute) %>%
+  ungroup()%>%
+  dplyr::select(-`long-term`, -acute)
+
+FC_lt_subacute <- FC_lt_subacute_pre %>%
+  spread(Time.points, logFC)  %>%
+  mutate(lt_subacute = `long-term`-subacute) %>%
+  ungroup()%>%
+  dplyr::select(-`long-term`, -subacute)
+
+FC_subacute_acute <- FC_subacute_acute_pre %>%
+  spread(Time.points, logFC)  %>%
+  mutate(subacute_acute = subacute-acute) %>%
+  ungroup()%>%
+  dplyr::select(-acute, -subacute)
+
+
+FC_lt_acute$Gene.symbol <-  str_to_title(FC_lt_acute$Gene.symbol) 
+FC_lt_subacute$Gene.symbol <-  str_to_title(FC_lt_subacute$Gene.symbol) 
+FC_subacute_acute$Gene.symbol <-  str_to_title(FC_subacute_acute$Gene.symbol) 
+
+FC_lt_acute_list <- data.frame(as.list(FC_lt_acute))%>% arrange(desc(abs(lt_acute)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+FC_lt_subacute_list <- data.frame(as.list(FC_lt_subacute))%>% arrange(desc(abs(lt_subacute)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+FC_subacute_acute_list <- data.frame(as.list(FC_subacute_acute))%>% arrange(desc(abs(subacute_acute)))%>% deframe() %>% sort(decreasing = T) %>% na.omit() 
+
+# GSE file
+gse_lt_acute <-gseGO(geneList=FC_lt_acute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_lt_subacute <-gseGO(geneList=FC_lt_subacute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+gse_subacute_acute <-gseGO(geneList=FC_subacute_acute_list, ont ="BP", keyType = "SYMBOL", nPerm = 10000, minGSSize = 15,  maxGSSize = 800, pvalueCutoff = .05, verbose = TRUE, OrgDb = org.Mm.eg.db, pAdjustMethod = "none")
+gse_rat_mouse_acute<- simplify(gse_rat_mouse_acute, cutoff=0.7, by="p.adjust", select_fun=min)
+
+
+```
+
+
+```{r fig.height=7, fig.width=20}
+mybreaks = c(10^-9, 10^-7, 10^-5, 10^-3, 0.01, 0.1, 1) # pvalue scale
+
+gse_lt_acute2 <- gse_lt_acute %>% filter(setSize >100)
+gse_lt_subacute2 <- gse_lt_subacute %>% filter(setSize >100)
+gse_subacute_acute2 <- gse_subacute_acute %>% filter(setSize >100)
+
+# Table Export
+table_gse_lt_acute2 <- gse_lt_acute2@result %>% arrange((p.adjust)) %>%   slice(1:30)
+table_gse_lt_subacute2 <- gse_lt_subacute2@result%>% arrange((p.adjust)) %>% slice(1:30)
+table_gse_subacute_acute2 <- gse_subacute_acute2@result %>% arrange((p.adjust)) %>%   slice(1:30)
+
+write_xlsx(table_gse_lt_acute2, "Table_GSE/table_gse_lt_acute2.xlsx")
+write_xlsx(table_gse_lt_subacute2, "Table_GSE/table_gse_lt_subacute2.xlsx")
+write_xlsx(table_gse_subacute_acute2, "Table_GSE/table_gse_subacute_acute2.xlsx")
+# Table Export End
+
+
+aaaaa_DotPlotRich <- ggplot(gse_lt_acute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE lt to acute")+
+theme_bw()
+
+bbbbb_DotPlotRich <- ggplot(gse_lt_subacute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE lt / subacute")+
+theme_bw()
+
+
+ccccc_DotPlotRich <- ggplot(gse_subacute_acute2, showCategory =20,
+aes(NES, fct_reorder(Description, abs(p.adjust)))) +
+geom_segment(aes(xend=0, yend = Description)) +
+geom_point(aes(color=p.adjust, size = Count)) +
+scale_color_gradientn(colours=c("#c51b8a", "#f7ca64", "#46bac2"), limits=c(10^-6,1), na.value="#c51b8a", trans = "log", breaks = mybreaks, labels = mybreaks) +
+scale_size_continuous(range=c(1, 10)) +
+scale_x_continuous(expand=c(0,0)) +
+xlim(-2.5, 2.5) +
+guides(size = guide_legend(override.aes=list(shape=1))) +
+scale_y_discrete(label = function(x) stringr::str_trunc(x, 40)) +
+xlab("NES") +
+ylab(NULL) +
+ggtitle("GSE subacute / acute")+
+theme_bw()
+
+PLOT_all_models_enrichment4 <- plot_grid(aaaaa_DotPlotRich,bbbbb_DotPlotRich,ccccc_DotPlotRich, align = "v", ncol = 3)
+PLOT_all_models_enrichment4
+
+ggsave("Enrichment_DetailedAnalysis/PLOT_all_time_enrichment_All_only5.pdf" ,PLOT_all_models_enrichment4, width = 19, height = 8,  useDingbats=F)
+
+```
+
+CNET plot 
+
+```{r fig.height=10, fig.width=45}
+
+aaaaa_cnet_plot <- cnetplot(gse_lt_acute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_lt_acute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("LT / acute Time") 
+
+
+bbbbb_cnet_plot <- cnetplot(gse_lt_subacute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_lt_subacute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("LT / subacute Time") 
+
+
+ccccc_cnet_plot <- cnetplot(gse_subacute_acute2, categorySize="pvalue",layout = "nicely", cex_line=.2, 
+               foldChange=FC_subacute_acute_list,
+               showCategory =5, 
+               node_label ="category",
+               colorEdge = FALSE,
+               color_category = "#29663d")+
+               scale_color_gradientn(colours=c("#2b8cbe","#bdbdbd",  "#c51b8a"), limits=c(-3,3), breaks = c(-3,-2,-1,0,1,2,3), na.value="green") +
+  ggtitle("Subacute / acute time")
+
+
+
+
+PLOT_cnet_plot_strokemodel4<- plot_grid(aaaaa_cnet_plot,bbbbb_cnet_plot,ccccc_cnet_plot, align = "v", ncol = 3) +  theme(legend.position="none") # large plot error otherwise
+PLOT_cnet_plot_strokemodel4
+
+ggsave("Enrichment_DetailedAnalysis/PLOT_CNET_all_time_enrichment_All3_2.pdf" ,PLOT_cnet_plot_strokemodel4, width = 45, height = 10,  useDingbats=F)  +  theme(legend.position="none")
+```
+
